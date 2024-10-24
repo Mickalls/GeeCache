@@ -1,6 +1,8 @@
 package geecache
 
 import (
+	pb "GeeCache/geecachepb"
+	"GeeCache/singleflight"
 	"fmt"
 	"log"
 	"sync"
@@ -18,10 +20,11 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 
 // Group 作为一个缓存的命名空间,比如缓存学生的成绩则名为scores
 type Group struct {
-	name      string     // 缓存的名称
-	getter    Getter     // 缓存未命中时的回调函数
-	mainCache cache      // 通过cache.go和lru目录实现的缓存
-	peers     PeerPicker // HTTPPool 结构体实现了 PeerPicker 接口,所以注册节点只需将HTTPPool注册到Group的peers变量
+	name      string              // 缓存的名称
+	getter    Getter              // 缓存未命中时的回调函数
+	mainCache cache               // 通过cache.go和lru目录实现的缓存
+	peers     PeerPicker          // HTTPPool 结构体实现了 PeerPicker 接口,所以注册节点只需将HTTPPool注册到Group的peers变量
+	loader    *singleflight.Group // 同一时间同一请求并不发起多次查询，所有请求都等第一次请求返回结果
 }
 
 var (
@@ -41,6 +44,7 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 		name:      name,
 		getter:    getter,
 		mainCache: cache{cacheBytes: cacheBytes},
+		loader:    &singleflight.Group{},
 	}
 
 	groups[name] = g
@@ -95,23 +99,34 @@ func (g *Group) RegisterPeers(peers PeerPicker) {
 }
 
 func (g *Group) load(key string) (ByteView, error) {
-	if g.peers != nil {
-		if peer, ok := g.peers.PickPeer(key); ok {
-			if value, err := g.getFromPeer(peer, key); err == nil {
-				return value, nil
+	viewi, err := g.loader.Do(key, func() (interface{}, error) {
+		if g.peers != nil {
+			if peer, ok := g.peers.PickPeer(key); ok {
+				if value, err := g.getFromPeer(peer, key); err == nil {
+					return value, nil
+				}
+				log.Println("[GeeCache]从其他节点获取缓存值失败")
 			}
-			log.Println("[GeeCache]从其他节点获取缓存值失败")
+			//log.Println("[GeeCache]选取其他节点失败")
 		}
-		log.Println("[GeeCache]选取其他节点失败")
+		//log.Println("[GreeCache]调用节点", g.name, "的回调函数")
+		return g.getLocally(key)
+	})
+	if err == nil {
+		return viewi.(ByteView), nil
 	}
-	log.Println("[GreeCache]调用节点", g.name, "的回调函数")
-	return g.getLocally(key)
+	return ByteView{}, err
 }
 
 func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
-	bytes, err := peer.Get(g.name, key)
+	req := &pb.Request{
+		Group: g.name,
+		Key:   key,
+	}
+	res := &pb.Response{}
+	err := peer.Get(req, res)
 	if err != nil {
 		return ByteView{}, err
 	}
-	return ByteView{b: bytes}, nil
+	return ByteView{b: cloneBytes(res.Value)}, nil
 }

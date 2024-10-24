@@ -2,7 +2,9 @@ package geecache
 
 import (
 	"GeeCache/consistenthash"
+	pb "GeeCache/geecachepb"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
 	"net/http"
@@ -104,30 +106,34 @@ type httpGetter struct {
 }
 
 // Get 客户端根据节点名称group和键key从其他节点查询缓存结果
-func (h *httpGetter) Get(group string, key string) ([]byte, error) {
+func (h *httpGetter) Get(in *pb.Request, out *pb.Response) error {
 	// 根据url格式,构建目的地的url,QueryEscape函数对string编码,将特殊字符转换为url允许的格式
 	u := fmt.Sprintf(
 		"%v%v/%v",
 		h.baseURL,
-		url.QueryEscape(group),
-		url.QueryEscape(key),
+		url.QueryEscape(in.GetGroup()),
+		url.QueryEscape(in.GetKey()),
 	)
 	res, err := http.Get(u)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http get error: '%s' from server", res.Status)
+		return fmt.Errorf("http get error: '%s' from server", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response body: %v", err)
+		return fmt.Errorf("reading response body: %v", err)
 	}
 
-	return bytes, nil
+	if err = proto.Unmarshal(bytes, out); err != nil {
+		return fmt.Errorf("unmarshaling response body: %v", err)
+	}
+
+	return nil
 }
 
 // 确保 httpGetter 类型实现了 PeerGetter 接口
