@@ -7,9 +7,9 @@ import (
 
 // 实例化lru，封装get和add方法，并添加互斥锁mu，支持单机并发缓存
 type cache struct {
-	mu         sync.Mutex
-	lru        *lru.Cache
-	cacheBytes int64
+	mu         sync.Mutex // 添加互斥锁,使其支持并发
+	lru        *lru.Cache // 封装lru.Cache缓存对象
+	cacheBytes int64      // 代表lru.Cache对象允许使用的最大内存
 }
 
 // 封装 LRU 的 ADD 方法, 并添加互斥锁

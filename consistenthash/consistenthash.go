@@ -10,7 +10,7 @@ import (
 type Hash func(data []byte) uint32
 
 type Map struct {
-	hash     Hash
+	hash     Hash           // 哈希计算函数，默认crc32.ChecksumIEEE算法
 	replicas int            // 虚拟节点倍数(1个真实节点可以拥有replicas个虚拟节点)
 	keys     []int          // 哈希环
 	hashMap  map[int]string // key-虚拟节点的哈希值 value-真实节点的名称

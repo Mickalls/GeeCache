@@ -18,15 +18,15 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 
 // Group 作为一个缓存的命名空间,比如缓存学生的成绩则名为scores
 type Group struct {
-	name      string // 缓存的名称
-	getter    Getter // 缓存未命中时的回调函数
-	mainCache cache  // 通过cache.go和lru目录实现的缓存
-	peers     PeerPicker
+	name      string     // 缓存的名称
+	getter    Getter     // 缓存未命中时的回调函数
+	mainCache cache      // 通过cache.go和lru目录实现的缓存
+	peers     PeerPicker // HTTPPool 结构体实现了 PeerPicker 接口,所以注册节点只需将HTTPPool注册到Group的peers变量
 }
 
 var (
-	mu     sync.RWMutex
-	groups = make(map[string]*Group)
+	mu     sync.RWMutex              // 不可并发新建/访问Group对象，利用该全局互斥锁控制
+	groups = make(map[string]*Group) // 记录所有的Group对象，通过名称映射到Group指针
 )
 
 func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
@@ -64,8 +64,7 @@ func (g *Group) Get(key string) (ByteView, error) {
 		log.Println("[GeeCache] 缓存命中!")
 		return v, nil
 	}
-
-	// 如果没在本机缓存中查找到数据,通过load函数调用getLocally/getFromPeer，
+	// 如果没在本机缓存中查找到数据,通过load函数调用 1.getFromPeer 2.getLocally
 	// getLocally通过用户提供的回调函数查找其他数据源，getFromPeer查找分布式缓存中的其他节点
 	return g.load(key)
 }
@@ -103,7 +102,9 @@ func (g *Group) load(key string) (ByteView, error) {
 			}
 			log.Println("[GeeCache]从其他节点获取缓存值失败")
 		}
+		log.Println("[GeeCache]选取其他节点失败")
 	}
+	log.Println("[GreeCache]调用节点", g.name, "的回调函数")
 	return g.getLocally(key)
 }
 

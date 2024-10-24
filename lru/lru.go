@@ -4,11 +4,11 @@ import "container/list"
 
 // LRU 缓存
 type Cache struct {
-	maxBytes  int64 // 允许使用的最大内存
-	nbytes    int64 // 当前已使用的内存
-	ll        *list.List
-	cache     map[string]*list.Element
-	OnEvicted func(key string, value Value) // 某条记录被移除的回调函数,可以为nil
+	maxBytes  int64                         // 允许使用的最大内存
+	nbytes    int64                         // 当前已使用的内存
+	ll        *list.List                    // 双向链表
+	cache     map[string]*list.Element      // 哈希表
+	OnEvicted func(key string, value Value) // 某条记录被移除后执行的回调函数,可以为nil
 }
 
 // 双向链表节点的数据类型

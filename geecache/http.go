@@ -38,7 +38,7 @@ func (p *HTTPPool) Log(format string, v ...interface{}) {
 }
 
 func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// 1. 是选判断前缀是否是 basePath
+	// 判断前缀是否是 basePath
 	if !strings.HasPrefix(r.URL.Path, p.basePath) {
 		panic("HTTPPool serving unexpected path:" + r.URL.Path)
 	}
