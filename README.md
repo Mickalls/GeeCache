@@ -11,17 +11,21 @@
 **Day1：实现LRU策略**
 - LRU算法
 - go test 测试
-  **Day2：单机并发缓存**
+ 
+**Day2：单机并发缓存**
 - 互斥锁
 - 接口型函数
 - 封装思想
-  **Day3：HTTP Server**
+
+**Day3：HTTP Server**
 - go的http标准库
 - URL设计
 - 处理http请求
-  **Day4：一致性哈希**
+
+**Day4：一致性哈希**
 - 一致性哈希算法实现
-  **Day5：搭建HTTP Client、构建分布式节点**
+
+**Day5：搭建HTTP Client、构建分布式节点**
 - 一致性哈希算法应用
 - 良好的接口设计思想
 
